@@ -88,6 +88,9 @@ MODE=pg PG_CONN="dbname=n3c host=localhost" SCHEMA=n3c_backup_20251210 \
 #   MAX_VERSIONS=2              keep fewer versions per value set
 #   HIDE_VOCABS="RxNorm Extension"  vocabs whose descendants are excluded
 #                               (members in them are still kept); "" to disable
+#   COMPLETE_VOCABS="LOINC,ICDO3,HemOnc,ICD10PCS,SNOMED,RxNorm"
+#                               pull in ALL used (total_cnt>0) concepts of these
+#                               vocabs so authors can browse them; "" to disable
 ```
 
 Produces `data/public/*.parquet`. The build prints a size report; aim to keep
@@ -95,18 +98,19 @@ the total bundle ≲ a few hundred MB so it fits in browser memory.
 
 ### Measured sizes (against the restored dump, MAX_DEPTH=0)
 
-| | full closure | RxNorm Ext excluded (default) |
-|---|---|---|
-| csets kept (version-capped) | 931 | 931 |
-| concepts (seed = members) | 363,020 | 363,020 |
-| concepts (universe = + descendants) | 688,800 | **427,741** |
-| graph edges | 1,841,597 | **1,080,633** |
-| **total Parquet bundle** | 53 MB | **39 MB** |
+| | full closure | RxNorm Ext excluded | + vocab completion (default) |
+|---|---|---|---|
+| csets kept (version-capped) | 931 | 931 | 931 |
+| concepts (seed = members) | 363,020 | 363,020 | 363,020 |
+| concepts (universe) | 688,800 | 427,741 | **550,157** |
+| graph edges | 1,841,597 | 1,080,633 | **1,241,647** |
+| **total Parquet bundle** | 53 MB | 39 MB | **45 MB** |
 
-Descendant closure roughly doubles the concept universe but stays tiny. The data
-is US-only and TermHub hides RxNorm Extension by default, so its ~261K
-near-zero-usage descendants are excluded (members in it are still kept). Both
-well within the browser memory budget.
+The concept universe = cset members + their descendants (US-only, so RxNorm
+Extension descendants are excluded — TermHub hides that vocab by default;
+members in it are still kept) + all *used* concepts of clinically central vocabs
+(labs, oncology, procedures, standard backbone) so authors can browse/search
+them. All well within the browser memory budget.
 
 ## Source / provenance
 

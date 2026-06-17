@@ -24,6 +24,12 @@ import {
   conceptGraph,
 } from './queries';
 
+// Stand-in for the backend's last-refreshed timestamp. Bumping this (e.g. on a
+// new bundle deploy) invalidates clients' localStorage caches. Vite injects
+// __BUILD_TIME__ at build; falls back to a fixed value in dev.
+const BUNDLE_BUILD_TIME =
+  typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : '2026-06-17T00:00:00Z';
+
 // Maps the original `api` name to a function that runs the SQL and returns the
 // raw rows (same JSON the FastAPI route returned).
 const API_IMPL = {
@@ -45,6 +51,16 @@ export class DuckDbDataGetter {
   // ids for logging. There is no server here.
   async getApiCallGroupId() {
     this.api_call_group_id = null;
+    return null;
+  }
+
+  // The HTTP DataGetter exposed axiosCall; a few callers (DataCache.cacheCheck)
+  // use it directly. The only path that matters for the static demo is
+  // 'last-refreshed' — return the bundle's build timestamp so cache-staleness
+  // logic works (cache invalidates when a new bundle is deployed). Everything
+  // else is a no-op (no server to call).
+  async axiosCall(path) {
+    if (path === 'last-refreshed') return BUNDLE_BUILD_TIME;
     return null;
   }
 

@@ -38,23 +38,28 @@ async function instantiate() {
   return db;
 }
 
-// Register each Parquet file under `${dataUrl}/<table>.parquet` as a view.
-// Uses registerFileURL so DuckDB streams via HTTP range requests (httpfs) —
-// only the bytes a query needs are fetched, not the whole file.
+// Register each Parquet file as a view. DuckDB-Wasm streams via HTTP range
+// requests (httpfs), fetching only the bytes a query needs.
+//
+// `dataUrl` may be relative (e.g. "/data" in dev). DuckDB-Wasm's read_parquet
+// needs an absolute URL, so resolve against the page origin. We register the
+// absolute URL under a short name and read_parquet that name — registerFileURL
+// makes the name resolvable so read_parquet doesn't re-parse it as a raw URL.
 async function registerParquet(db, dataUrl) {
+  const base = new URL(dataUrl, window.location.href).href.replace(/\/$/, '');
   const conn = await db.connect();
   try {
     for (const t of TABLES) {
-      const url = `${dataUrl}/${t}.parquet`;
+      const name = `${t}.parquet`;
+      const url = `${base}/${name}`;
       await db.registerFileURL(
-        `${t}.parquet`,
+        name,
         url,
         duckdb.DuckDBDataProtocol.HTTP,
         false,
       );
       await conn.query(
-        `CREATE OR REPLACE VIEW ${t} AS
-           SELECT * FROM read_parquet('${t}.parquet')`,
+        `CREATE OR REPLACE VIEW ${t} AS SELECT * FROM read_parquet('${name}')`,
       );
     }
   } finally {

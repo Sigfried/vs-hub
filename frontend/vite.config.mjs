@@ -31,6 +31,9 @@ export default async ({ mode }) => {
     plugins: [react(), viteTsconfigPaths.default()],
     define: {
       'process.env.COMMIT_HASH': JSON.stringify(getCommitHash()),
+      // Bundle build time — stand-in for the backend's 'last-refreshed' so
+      // client localStorage caches invalidate on a new deploy.
+      __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
     },
     server: {
       open: false,

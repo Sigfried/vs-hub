@@ -117,14 +117,24 @@ WHERE codeset_id IN (SELECT codeset_id FROM demo_codesets);
 --     WARNING: depth 0 over high-level concepts can explode (concept_ancestor
 --     is the bulk of the 30 GB dump). Measure with the report below; if too big
 --     re-run with a bounded MAX_DEPTH.
+--
+--     {{HIDE_VOCABS}} = comma-separated quoted vocab list to EXCLUDE from
+--     descendant expansion (default 'RxNorm Extension'). The data is US-only and
+--     TermHub hides these vocabs by default, so their descendant trees are dead
+--     weight (~490K RxNorm Extension concepts with near-zero usage). Concepts
+--     that are actual cset MEMBERS are always kept regardless (they're in
+--     seed_concepts); only their hidden-vocab DESCENDANTS are dropped. Pass an
+--     empty/non-matching list to disable.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE TEMP TABLE concept_universe AS
-SELECT concept_id FROM seed_concepts
+SELECT concept_id FROM seed_concepts        -- members always kept, any vocab
 UNION
 SELECT DISTINCT ca.descendant_concept_id
 FROM {{SRC}}concept_ancestor ca
+JOIN {{SRC}}concept c ON c.concept_id = ca.descendant_concept_id
 WHERE ca.ancestor_concept_id IN (SELECT concept_id FROM seed_concepts)
-  AND ({{MAX_DEPTH}} = 0 OR ca.min_levels_of_separation <= {{MAX_DEPTH}});
+  AND ({{MAX_DEPTH}} = 0 OR ca.min_levels_of_separation <= {{MAX_DEPTH}})
+  AND c.vocabulary_id NOT IN ({{HIDE_VOCABS}});
 
 -- ---------------------------------------------------------------------------
 -- 3. concepts + counts → concepts_with_counts.parquet  (concept metadata)

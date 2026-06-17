@@ -28,6 +28,12 @@ MAX_VERSIONS="${MAX_VERSIONS:-3}"
 # Start at 0 to measure; if the bundle explodes, re-run with e.g. MAX_DEPTH=3.
 MAX_DEPTH="${MAX_DEPTH:-0}"
 
+# Vocabs to EXCLUDE from descendant expansion (cset members in these vocabs are
+# still kept; only their descendant trees are dropped). Comma-separated, no
+# quotes here — the script quotes them. Default hides RxNorm Extension (US-only
+# data; TermHub hides it by default). Set HIDE_VOCABS="" to disable.
+HIDE_VOCABS="${HIDE_VOCABS:-RxNorm Extension}"
+
 # Output dir for the demo Parquet (committed for GitHub Pages).
 OUT="${OUT:-data/public}"
 
@@ -50,6 +56,20 @@ else
   echo "Unknown MODE=$MODE (use 'pg' or 'duckdb')" >&2; exit 1
 fi
 
+# Build a SQL quoted, comma-separated list from HIDE_VOCABS (split on commas,
+# trim, single-quote each, escaping embedded quotes). Empty -> '' (matches no
+# real vocab, i.e. disables the exclusion).
+hide_vocabs_sql() {
+  local IFS=','; local out=""
+  for v in $HIDE_VOCABS; do
+    v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"  # trim
+    v="${v//\'/\'\'}"                                               # escape '
+    out+="${out:+, }'$v'"
+  done
+  echo "${out:-''}"
+}
+HIDE_VOCABS_SQL="$(hide_vocabs_sql)"
+
 # --- substitute placeholders & run ------------------------------------------
 SQL="$(sed \
   -e "s|{{SRC}}|$SRC|g" \
@@ -57,10 +77,12 @@ SQL="$(sed \
   -e "s|{{BUNDLE_JSON}}|$BUNDLE_JSON|g" \
   -e "s|{{MAX_VERSIONS}}|$MAX_VERSIONS|g" \
   -e "s|{{MAX_DEPTH}}|$MAX_DEPTH|g" \
+  -e "s|{{HIDE_VOCABS}}|$HIDE_VOCABS_SQL|g" \
   "$SQL_TEMPLATE")"
 
 echo "== TermHub subset build =="
 echo "  MODE=$MODE  MAX_VERSIONS=$MAX_VERSIONS  MAX_DEPTH=$MAX_DEPTH"
+echo "  HIDE_VOCABS=[$HIDE_VOCABS] -> $HIDE_VOCABS_SQL"
 echo "  SRC=$SRC"
 echo "  BUNDLE_JSON=$BUNDLE_JSON"
 echo "  OUT=$OUT_ABS"

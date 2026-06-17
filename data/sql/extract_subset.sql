@@ -85,7 +85,9 @@ WHERE n_ver <= {{MAX_VERSIONS}}                    -- keep all if within cap
 --    Drop atlas_json — large and not needed for the read-only views.
 -- ---------------------------------------------------------------------------
 COPY (
-  SELECT * EXCLUDE (atlas_json)
+  -- version is stored as double only because ~646 rows are NULL; all non-null
+  -- values are integer-valued, so cast to INT (NULLs preserved).
+  SELECT * EXCLUDE (atlas_json) REPLACE (CAST(version AS INTEGER) AS version)
   FROM {{SRC}}all_csets
   WHERE codeset_id IN (SELECT codeset_id FROM demo_codesets)
 ) TO '{{OUT}}/all_csets.parquet' (FORMAT parquet);

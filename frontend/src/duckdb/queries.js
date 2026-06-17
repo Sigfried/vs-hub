@@ -138,15 +138,15 @@ export async function conceptGraph(
   };
 }
 
-// Researcher columns carried on each all_csets row (see RESEARCHER_COLS in the
-// backend). Maps researcher-id → [roles], matching get_row_researcher_ids_dict.
+// Researcher columns carried on each all_csets row that hold a researcher
+// multipassId (joining to researcher.multipassId). Maps id → [roles], matching
+// get_row_researcher_ids_dict. NOTE: reviewed_by and n3c_reviewer are omitted —
+// they are 100% NULL in this dataset (and came through as `double`, not text).
 const RESEARCHER_COLS = [
   'codeset_created_by',
   'container_created_by',
   'assigned_informatician',
   'assigned_sme',
-  'reviewed_by',
-  'n3c_reviewer',
 ];
 
 function researcherIdsDict(row) {

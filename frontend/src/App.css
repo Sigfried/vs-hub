@@ -1,0 +1,325 @@
+body {
+  margin: 0;
+  font-family: sans-serif;
+}
+
+/*
+    top border of textarea not showing.
+ */
+textarea {
+    border-radius: 2px;
+    transition: all .2s ease-out;
+    -moz-border-left: 1px solid #CCCCCC;
+    -moz-border-top: 1px solid #CCCCCC;
+    -moz-border-right: 1px solid #CCCCCC;
+    -moz-border-bottom: 1px solid #CCCCCC;
+}
+
+.toggle-collapse {
+  cursor: pointer;
+}
+
+.concept-name-row {
+  display: flex;
+  gap: 3px;
+}
+
+.Tooltip {
+  position: absolute;
+  background: #333;
+  padding: 0.5rem;
+  color: white;
+  z-index: 100;
+  min-width: 150px;
+
+  /*
+  min-height: 2.5em;
+  background: gray;
+  color: white;
+  pointer-events: none;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 24px;
+  width: 150px;
+   */
+}
+
+.cset-selection {
+  display: none;
+}
+
+.MuiAutocomplete-option {
+  line-height: 115% !important;
+  padding-left: 40px !important;
+  text-indent: -25px !important;
+  word-wrap: break-word !important;
+}
+/*
+.rdt_TableCell {
+  text-align: center;
+  align-content: center;
+}
+ */
+.comparison-data-table .rdt_TableRow,
+.comparison-data-table .rdt_TableCell {
+  min-height: 0px;
+}
+
+.comparison-data-table .rdt_TableRow:hover {
+  background-color: #aad4ff !important;
+}
+
+.comparison-data-table .rdt_TableHeadRow,
+.csets-data-table .rdt_TableHeadRow {
+  background-color: #e6e5e5;
+  border: 2px solid #999;
+  /*height: auto;
+  height: 182px;
+  color: red;
+  borderBottomStyle: solid;
+  padding: 0 0px 0 3px;
+  */
+  vertical-align: bottom;
+  overflow: visible;
+  text-overflow: unset;
+  margin-top: auto;
+}
+.cset-column-header {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  /* white-space: nowrap;
+  cursor: pointer;
+  overflow: clip;
+  text-overflow: unset;
+  justify-content: left; /* fixes weird thing with rightmost col shifting left when rotated * /
+  margin-right: auto;
+  height: fit-content;
+  transform: translate(50%,0px) rotate(-45deg);
+  transform-origin: bottom left;
+   */
+}
+.comparison-data-table .rdt_TableHeadRow > div + div div {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: auto;
+}
+/*
+.rdt_TableHeader {
+  align-content: baseline;
+  align-self: baseline;
+  alignment-baseline: bottom;
+  alignment: bottom;
+}
+ */
+.csets-data-table > .rdt_TableHeader {
+  min-height: 0px;
+}
+
+#selected-csets-table > .rdt_TableHeader > div:nth-child(2) {
+  visibility: hidden;
+}
+
+.csets-data-table .rdt_Table {
+  padding: 0px;
+}
+
+/*
+.concept-name-text {
+  padding-left: 22px;
+  text-indent: -22px;
+}
+*/
+
+.css-12wnr2w-MuiButtonBase-root-MuiCheckbox-root {
+  padding: 0 !important;
+}
+
+.MuiCard-root {
+  margin: 3px;
+}
+
+/* from floating-ui popover sandbox:
+    https://codesandbox.io/s/distracted-swirles-jo1pvu?file=/src/styles.css:59-312
+ */
+.Popover {
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 10, 20, 0.1);
+  border: 1px solid #ddd;
+  font-size: 90%;
+  padding: 4px 8px;
+  border-radius: 4px;
+  box-sizing: border-box;
+  width: max-content;
+  max-width: calc(100vw - 10px);
+}
+
+.help-card {
+  opacity: 1;
+  position: relative;
+  padding: 5px;
+  z-index: 100;
+}
+
+
+
+
+
+/* css for Pace spinner thing */
+.pace {
+    -webkit-pointer-events: none;
+    pointer-events: none;
+
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+}
+
+.pace .pace-activity {
+    display: block;
+    position: fixed;
+    z-index: 2000;
+    top: 0;
+    right: 0;
+    width: 300px;
+    height: 300px;
+    background: #29d;
+    -webkit-transition: -webkit-transform 0.3s;
+    transition: transform 0.3s;
+    -webkit-transform: translateX(100%) translateY(-100%) rotate(45deg);
+    transform: translateX(100%) translateY(-100%) rotate(45deg);
+    pointer-events: none;
+}
+
+.pace.pace-active .pace-activity {
+    -webkit-transform: translateX(50%) translateY(-50%) rotate(45deg);
+    transform: translateX(50%) translateY(-50%) rotate(45deg);
+}
+
+.pace .pace-activity::before,
+.pace .pace-activity::after {
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    display: block;
+    border: 5px solid #fff;
+    border-radius: 50%;
+    content: '';
+}
+
+.pace .pace-activity::before {
+    margin-left: -40px;
+    width: 80px;
+    height: 80px;
+    border-right-color: rgba(0, 0, 0, .2);
+    border-left-color: rgba(0, 0, 0, .2);
+    -webkit-animation: pace-theme-corner-indicator-spin 3s linear infinite;
+    animation: pace-theme-corner-indicator-spin 3s linear infinite;
+}
+
+.pace .pace-activity::after {
+    bottom: 50px;
+    margin-left: -20px;
+    width: 40px;
+    height: 40px;
+    border-top-color: rgba(0, 0, 0, .2);
+    border-bottom-color: rgba(0, 0, 0, .2);
+    -webkit-animation: pace-theme-corner-indicator-spin 1s linear infinite;
+    animation: pace-theme-corner-indicator-spin 1s linear infinite;
+}
+
+@-webkit-keyframes pace-theme-corner-indicator-spin {
+    0% { -webkit-transform: rotate(0deg); }
+    100% { -webkit-transform: rotate(359deg); }
+}
+@keyframes pace-theme-corner-indicator-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(359deg); }
+}
+
+/* for n3c comparison diff tables */
+#n3ccompdiff {
+    font-family: Arial, Helvetica, sans-serif;
+    border-collapse: collapse;
+    /* width: 100%;*/
+}
+
+#n3ccompdiff td, #n3ccompdiff th {
+    border: 1px solid #ddd;
+    padding: 2px 5px 2px 5px;
+}
+
+#n3ccompdiff tr:nth-child(even){background-color: #f2f2f2;}
+
+#n3ccompdiff tr:hover {background-color: #ddd;}
+
+#n3ccompdiff th {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: left;
+    background-color: #04AA6D;
+    color: white;
+}
+
+.stats-and-options .rdt_TableHead {
+    /*display: none;*/
+}
+
+/* html table styles from https://www.htmltables.io/. can modify there */
+
+.table_component {
+    overflow: auto;
+    width: 100%;
+}
+
+.table_component table {
+    border: 1px solid #dededf;
+    height: 100%;
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    border-spacing: 1px;
+    text-align: left;
+}
+
+.table_component caption {
+    caption-side: top;
+    text-align: left;
+}
+
+.table_component th {
+    border: 1px solid #dededf;
+    background-color: #eceff1;
+    color: #000000;
+    padding: 5px;
+}
+
+.table_component td {
+    border: 1px solid #dededf;
+    background-color: #ffffff;
+    color: #000000;
+    padding: 5px;
+}
+
+.add-concepts body {
+  font-family: sans-serif;
+  font-size: 14px;
+}
+
+.add-concepts .Note {
+  background-color: #ffd;
+  border-left: 0.25rem solid #ff6;
+  padding: 0.5rem;
+}
+
+.add-concepts .List {
+  border: 1px solid #ddd;
+  border-radius: 0.25rem;
+}
+
+.add-concepts .ListItem {
+  padding: 0 0.5rem;
+  line-height: 30px;
+}

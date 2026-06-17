@@ -59,28 +59,44 @@ classes, COVID sets, etc. — 499 csets across 43 bundles), expanded to include
 each value set's version history, then **capped to ≤3 versions per value set**
 (earliest + latest + one evenly-spaced middle) so the version UI stays clean.
 
+**Concept universe = cset members + their DESCENDANTS.** TermHub deliberately
+surfaces each cset concept's descendants so users can see and add them while
+authoring. `MAX_DEPTH` controls expansion: `0` = full transitive closure (all
+descendants, any depth), `N` = down to N levels. Full closure risks the
+`concept_ancestor` explosion (it's the bulk of the 30 GB dump), so the build
+reports `concepts_seed` vs `concepts_universe` — measure, and if the bundle is
+too big re-run with a bounded depth.
+
+### Restore + run
+
+Recommended: restore into Postgres once, explore/iterate from DuckDB via the
+postgres scanner (DuckDB writes the Parquet).
+
 ```bash
-# A) restore the dump into local Postgres, then:
-MODE=pg PG_CONN="dbname=n3c host=localhost" SCHEMA=n3c ./data/scripts/build_subset.sh
-# B) or, if you've imported into a DuckDB file:
-MODE=duckdb DUCKDB_FILE=data/duckdb/n3c.duckdb SCHEMA=n3c ./data/scripts/build_subset.sh
-# Override the version cap: MAX_VERSIONS=2 ./data/scripts/build_subset.sh
+# 1) restore the plain-SQL dump into local Postgres (one-time, ~30 GB):
+createdb n3c
+psql -d n3c -f ~/github-repos/TermHub/n3c_backup_20251210.dmp
+# objects land in schema "n3c_backup_20251210" (not "n3c").
+
+# 2) build the subset (DuckDB attaches Postgres read-only, writes Parquet):
+MODE=pg PG_CONN="dbname=n3c host=localhost" SCHEMA=n3c_backup_20251210 \
+  ./data/scripts/build_subset.sh
+
+# knobs:
+#   MAX_DEPTH=0      full descendant closure (default; measure first)
+#   MAX_DEPTH=3      cap descendant expansion to 3 levels if full is too big
+#   MAX_VERSIONS=2   keep fewer versions per value set
 ```
 
-Produces `data/public/*.parquet`.
+Produces `data/public/*.parquet`. The build prints a size report; aim to keep
+the total bundle ≲ a few hundred MB so it fits in browser memory.
 
-### Measured sizes (from the dump)
+### Sizes (members-only baseline; descendants will add to these)
 
-| | bundle only | + all versions | **+ versions, capped ≤3** |
-|---|---|---|---|
-| csets | 499 | 1,326 | **931** |
-| distinct concepts | 325K | 370K | ~360K |
-| graph edges | 852K | 944K | ~930K |
-| **est. Parquet bundle** | ~63 MB | ~125 MB | **~95 MB** |
-
-Versions are cheap: they reuse concepts (+14%) and edges (+11%); the growth is
-member rows. All options are well within the browser memory budget (≲ a few
-hundred MB). The cap mainly tames outliers (one value set had 96 versions → 3).
+Measured against the dump with member-only bounding (i.e. MAX_DEPTH not yet
+applied): 931 capped csets, ~360K member concepts, ~930K graph edges, ~95 MB.
+Descendant expansion grows the concept universe and graph above this — by how
+much depends on MAX_DEPTH; the build report quantifies it.
 
 ## Source / provenance
 

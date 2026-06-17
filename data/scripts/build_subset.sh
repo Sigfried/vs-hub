@@ -23,6 +23,11 @@ DUCKDB_FILE="${DUCKDB_FILE:-data/duckdb/n3c.duckdb}"
 # Override: MAX_VERSIONS=2 ./build_subset.sh
 MAX_VERSIONS="${MAX_VERSIONS:-3}"
 
+# Descendant-expansion depth for the concept universe.
+#   0 = full transitive closure (all descendants); N = down to N levels.
+# Start at 0 to measure; if the bundle explodes, re-run with e.g. MAX_DEPTH=3.
+MAX_DEPTH="${MAX_DEPTH:-0}"
+
 # Output dir for the demo Parquet (committed for GitHub Pages).
 OUT="${OUT:-data/public}"
 
@@ -51,10 +56,11 @@ SQL="$(sed \
   -e "s|{{OUT}}|$OUT_ABS|g" \
   -e "s|{{BUNDLE_JSON}}|$BUNDLE_JSON|g" \
   -e "s|{{MAX_VERSIONS}}|$MAX_VERSIONS|g" \
+  -e "s|{{MAX_DEPTH}}|$MAX_DEPTH|g" \
   "$SQL_TEMPLATE")"
 
 echo "== TermHub subset build =="
-echo "  MODE=$MODE  MAX_VERSIONS=$MAX_VERSIONS"
+echo "  MODE=$MODE  MAX_VERSIONS=$MAX_VERSIONS  MAX_DEPTH=$MAX_DEPTH"
 echo "  SRC=$SRC"
 echo "  BUNDLE_JSON=$BUNDLE_JSON"
 echo "  OUT=$OUT_ABS"

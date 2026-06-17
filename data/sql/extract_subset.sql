@@ -99,36 +99,57 @@ COPY (
   WHERE codeset_id IN (SELECT codeset_id FROM demo_codesets)
 ) TO '{{OUT}}/cset_members_items.parquet' (FORMAT parquet);
 
--- Bounding concept set C (every concept referenced by a kept cset).
-CREATE OR REPLACE TEMP TABLE C AS
+-- Seed set: every concept referenced as a member/item of a kept cset.
+CREATE OR REPLACE TEMP TABLE seed_concepts AS
 SELECT DISTINCT concept_id
 FROM {{SRC}}cset_members_items
 WHERE codeset_id IN (SELECT codeset_id FROM demo_codesets);
 
 -- ---------------------------------------------------------------------------
+-- 2b. CONCEPT UNIVERSE = seed concepts + their DESCENDANTS.
+--     TermHub deliberately surfaces each cset concept's descendants so users
+--     can see and add them while authoring (the original concept-graph endpoint
+--     pulled successors). We expand via concept_ancestor.
+--
+--     {{MAX_DEPTH}} controls expansion (substituted by build_subset.sh):
+--       0  = FULL transitive closure (all descendants, any depth)
+--       N  = descendants down to N levels (min_levels_of_separation <= N)
+--     WARNING: depth 0 over high-level concepts can explode (concept_ancestor
+--     is the bulk of the 30 GB dump). Measure with the report below; if too big
+--     re-run with a bounded MAX_DEPTH.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE TEMP TABLE concept_universe AS
+SELECT concept_id FROM seed_concepts
+UNION
+SELECT DISTINCT ca.descendant_concept_id
+FROM {{SRC}}concept_ancestor ca
+WHERE ca.ancestor_concept_id IN (SELECT concept_id FROM seed_concepts)
+  AND ({{MAX_DEPTH}} = 0 OR ca.min_levels_of_separation <= {{MAX_DEPTH}});
+
+-- ---------------------------------------------------------------------------
 -- 3. concepts + counts → concepts_with_counts.parquet  (concept metadata)
+--    Over the FULL universe (seed + descendants), so the authoring/hierarchy
+--    views can show descendant concepts not directly in any cset.
 -- ---------------------------------------------------------------------------
 COPY (
   SELECT *
   FROM {{SRC}}concepts_with_counts
-  WHERE concept_id IN (SELECT concept_id FROM C)
+  WHERE concept_id IN (SELECT concept_id FROM concept_universe)
 ) TO '{{OUT}}/concepts_with_counts.parquet' (FORMAT parquet);
 
 -- ---------------------------------------------------------------------------
 -- 4. graph edges → concept_graph.parquet  (the hierarchy; replaces the pickle)
---    concept_graph = concept_ancestor WHERE min_levels_of_separation = 1.
---    Bound HARD: both endpoints in C. (~5 MB; not the size risk it was in PG.)
+--    concept_graph = concept_ancestor WHERE min_levels_of_separation = 1
+--    (direct parent→child edges). Both endpoints within the universe.
 -- ---------------------------------------------------------------------------
 COPY (
   SELECT ancestor_concept_id   AS source_id,
          descendant_concept_id AS target_id
   FROM {{SRC}}concept_ancestor
   WHERE min_levels_of_separation = 1
-    AND ancestor_concept_id   IN (SELECT concept_id FROM C)
-    AND descendant_concept_id IN (SELECT concept_id FROM C)
+    AND ancestor_concept_id   IN (SELECT concept_id FROM concept_universe)
+    AND descendant_concept_id IN (SELECT concept_id FROM concept_universe)
 ) TO '{{OUT}}/concept_graph.parquet' (FORMAT parquet);
--- If the hierarchy view looks too sparse (one-hop children outside the subset),
--- relax: drop the descendant_concept_id filter and add those concept rows in step 3.
 
 -- ---------------------------------------------------------------------------
 -- 5. tiny lookups → export whole.
@@ -138,14 +159,17 @@ COPY (SELECT * FROM {{SRC}}domain)       TO '{{OUT}}/domain.parquet'       (FORM
 COPY (SELECT * FROM {{SRC}}relationship) TO '{{OUT}}/relationship.parquet' (FORMAT parquet);
 
 -- ---------------------------------------------------------------------------
--- 6. sanity report
+-- 6. sanity report — watch 'concepts_universe' vs 'concepts_seed' to see how
+--    much the descendant expansion adds at the chosen MAX_DEPTH.
 -- ---------------------------------------------------------------------------
-SELECT 'bundle_csets_pre_version'  AS metric, (SELECT COUNT(*) FROM bundle_ids)        AS n
-UNION ALL SELECT 'value_sets',            (SELECT COUNT(*) FROM bundle_names)
-UNION ALL SELECT 'csets_kept',            (SELECT COUNT(*) FROM demo_codesets)
-UNION ALL SELECT 'concepts',              (SELECT COUNT(*) FROM C)
-UNION ALL SELECT 'member_rows',           (SELECT COUNT(*) FROM {{SRC}}cset_members_items WHERE codeset_id IN (SELECT codeset_id FROM demo_codesets))
-UNION ALL SELECT 'graph_edges',           (SELECT COUNT(*) FROM {{SRC}}concept_ancestor
-                                             WHERE min_levels_of_separation = 1
-                                               AND ancestor_concept_id   IN (SELECT concept_id FROM C)
-                                               AND descendant_concept_id IN (SELECT concept_id FROM C));
+SELECT 'max_depth (0=full)'      AS metric, {{MAX_DEPTH}}                          AS n
+UNION ALL SELECT 'bundle_csets_pre_version', (SELECT COUNT(*) FROM bundle_ids)
+UNION ALL SELECT 'value_sets',               (SELECT COUNT(*) FROM bundle_names)
+UNION ALL SELECT 'csets_kept',               (SELECT COUNT(*) FROM demo_codesets)
+UNION ALL SELECT 'member_rows',              (SELECT COUNT(*) FROM {{SRC}}cset_members_items WHERE codeset_id IN (SELECT codeset_id FROM demo_codesets))
+UNION ALL SELECT 'concepts_seed',            (SELECT COUNT(*) FROM seed_concepts)
+UNION ALL SELECT 'concepts_universe',        (SELECT COUNT(*) FROM concept_universe)
+UNION ALL SELECT 'graph_edges',              (SELECT COUNT(*) FROM {{SRC}}concept_ancestor
+                                               WHERE min_levels_of_separation = 1
+                                                 AND ancestor_concept_id   IN (SELECT concept_id FROM concept_universe)
+                                                 AND descendant_concept_id IN (SELECT concept_id FROM concept_universe));

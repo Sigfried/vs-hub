@@ -83,20 +83,30 @@ MODE=pg PG_CONN="dbname=n3c host=localhost" SCHEMA=n3c_backup_20251210 \
   ./data/scripts/build_subset.sh
 
 # knobs:
-#   MAX_DEPTH=0      full descendant closure (default; measure first)
-#   MAX_DEPTH=3      cap descendant expansion to 3 levels if full is too big
-#   MAX_VERSIONS=2   keep fewer versions per value set
+#   MAX_DEPTH=0                 full descendant closure (default)
+#   MAX_DEPTH=3                 cap descendant expansion to 3 levels
+#   MAX_VERSIONS=2              keep fewer versions per value set
+#   HIDE_VOCABS="RxNorm Extension"  vocabs whose descendants are excluded
+#                               (members in them are still kept); "" to disable
 ```
 
 Produces `data/public/*.parquet`. The build prints a size report; aim to keep
 the total bundle ≲ a few hundred MB so it fits in browser memory.
 
-### Sizes (members-only baseline; descendants will add to these)
+### Measured sizes (against the restored dump, MAX_DEPTH=0)
 
-Measured against the dump with member-only bounding (i.e. MAX_DEPTH not yet
-applied): 931 capped csets, ~360K member concepts, ~930K graph edges, ~95 MB.
-Descendant expansion grows the concept universe and graph above this — by how
-much depends on MAX_DEPTH; the build report quantifies it.
+| | full closure | RxNorm Ext excluded (default) |
+|---|---|---|
+| csets kept (version-capped) | 931 | 931 |
+| concepts (seed = members) | 363,020 | 363,020 |
+| concepts (universe = + descendants) | 688,800 | **427,741** |
+| graph edges | 1,841,597 | **1,080,633** |
+| **total Parquet bundle** | 53 MB | **39 MB** |
+
+Descendant closure roughly doubles the concept universe but stays tiny. The data
+is US-only and TermHub hides RxNorm Extension by default, so its ~261K
+near-zero-usage descendants are excluded (members in it are still kept). Both
+well within the browser memory budget.
 
 ## Source / provenance
 

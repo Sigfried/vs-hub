@@ -125,16 +125,28 @@ WHERE codeset_id IN (SELECT codeset_id FROM demo_codesets);
 --     that are actual cset MEMBERS are always kept regardless (they're in
 --     seed_concepts); only their hidden-vocab DESCENDANTS are dropped. Pass an
 --     empty/non-matching list to disable.
+--
+--     {{COMPLETE_VOCABS}} = comma-separated quoted vocab list to COMPLETE: pull
+--     in ALL used (total_cnt > 0) concepts of these vocabs, even if not reached
+--     by cset membership or descent. These are vocabs cset authors browse/search
+--     (labs, oncology, procedures) where we only had the top slice. 'total_cnt>0'
+--     drops the dead long tail while keeping rare-but-real concepts. Pass an
+--     empty/non-matching list to disable.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE TEMP TABLE concept_universe AS
 SELECT concept_id FROM seed_concepts        -- members always kept, any vocab
 UNION
-SELECT DISTINCT ca.descendant_concept_id
+SELECT DISTINCT ca.descendant_concept_id    -- descendants (minus hidden vocabs)
 FROM {{SRC}}concept_ancestor ca
 JOIN {{SRC}}concept c ON c.concept_id = ca.descendant_concept_id
 WHERE ca.ancestor_concept_id IN (SELECT concept_id FROM seed_concepts)
   AND ({{MAX_DEPTH}} = 0 OR ca.min_levels_of_separation <= {{MAX_DEPTH}})
-  AND c.vocabulary_id NOT IN ({{HIDE_VOCABS}});
+  AND c.vocabulary_id NOT IN ({{HIDE_VOCABS}})
+UNION
+SELECT concept_id                            -- complete chosen vocabs (used only)
+FROM {{SRC}}concepts_with_counts
+WHERE vocabulary_id IN ({{COMPLETE_VOCABS}})
+  AND total_cnt > 0;
 
 -- ---------------------------------------------------------------------------
 -- 3. concepts + counts → concepts_with_counts.parquet  (concept metadata)

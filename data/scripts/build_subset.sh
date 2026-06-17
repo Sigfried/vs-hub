@@ -34,6 +34,13 @@ MAX_DEPTH="${MAX_DEPTH:-0}"
 # data; TermHub hides it by default). Set HIDE_VOCABS="" to disable.
 HIDE_VOCABS="${HIDE_VOCABS:-RxNorm Extension}"
 
+# Vocabs to COMPLETE: pull in ALL used (total_cnt>0) concepts of these vocabs so
+# authors can browse/search them, not just the cset-reached slice. Comma-
+# separated. Default = labs (LOINC), oncology (ICDO3, HemOnc), procedures
+# (ICD10PCS), plus the used-but-missing standard backbone (SNOMED, RxNorm).
+# Set COMPLETE_VOCABS="" to disable.
+COMPLETE_VOCABS="${COMPLETE_VOCABS:-LOINC,ICDO3,HemOnc,ICD10PCS,SNOMED,RxNorm}"
+
 # Output dir for the demo Parquet (committed for GitHub Pages).
 OUT="${OUT:-data/public}"
 
@@ -56,19 +63,19 @@ else
   echo "Unknown MODE=$MODE (use 'pg' or 'duckdb')" >&2; exit 1
 fi
 
-# Build a SQL quoted, comma-separated list from HIDE_VOCABS (split on commas,
-# trim, single-quote each, escaping embedded quotes). Empty -> '' (matches no
-# real vocab, i.e. disables the exclusion).
-hide_vocabs_sql() {
+# Turn a comma-separated vocab list (arg) into a SQL quoted list, trimming and
+# escaping each item. Empty -> '' (matches no real vocab, i.e. disables the IN).
+vocab_list_sql() {
   local IFS=','; local out=""
-  for v in $HIDE_VOCABS; do
+  for v in $1; do
     v="${v#"${v%%[![:space:]]*}"}"; v="${v%"${v##*[![:space:]]}"}"  # trim
     v="${v//\'/\'\'}"                                               # escape '
     out+="${out:+, }'$v'"
   done
   echo "${out:-''}"
 }
-HIDE_VOCABS_SQL="$(hide_vocabs_sql)"
+HIDE_VOCABS_SQL="$(vocab_list_sql "$HIDE_VOCABS")"
+COMPLETE_VOCABS_SQL="$(vocab_list_sql "$COMPLETE_VOCABS")"
 
 # --- substitute placeholders & run ------------------------------------------
 SQL="$(sed \
@@ -78,11 +85,13 @@ SQL="$(sed \
   -e "s|{{MAX_VERSIONS}}|$MAX_VERSIONS|g" \
   -e "s|{{MAX_DEPTH}}|$MAX_DEPTH|g" \
   -e "s|{{HIDE_VOCABS}}|$HIDE_VOCABS_SQL|g" \
+  -e "s|{{COMPLETE_VOCABS}}|$COMPLETE_VOCABS_SQL|g" \
   "$SQL_TEMPLATE")"
 
 echo "== TermHub subset build =="
 echo "  MODE=$MODE  MAX_VERSIONS=$MAX_VERSIONS  MAX_DEPTH=$MAX_DEPTH"
 echo "  HIDE_VOCABS=[$HIDE_VOCABS] -> $HIDE_VOCABS_SQL"
+echo "  COMPLETE_VOCABS=[$COMPLETE_VOCABS] -> $COMPLETE_VOCABS_SQL"
 echo "  SRC=$SRC"
 echo "  BUNDLE_JSON=$BUNDLE_JSON"
 echo "  OUT=$OUT_ABS"

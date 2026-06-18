@@ -1,5 +1,7 @@
 # TermHub demo — serverless revival
 
+**Live: https://sigfried.github.io/vs-hub/**
+
 A free, public, linkable demo of [TermHub](https://github.com/jhu-bids/TermHub),
 the N3C concept/value-set authoring and comparison tool. Funding ended; this
 revives it with **no backend and no hosted database** by running
@@ -23,15 +25,23 @@ strings the frontend hands to DuckDB-Wasm. See
 
 ## Status
 
+**Live: https://sigfried.github.io/vs-hub/** (read-only demo, deployed from
+`main` via GitHub Actions — see `.github/workflows/deploy-pages.yml`).
+
 - [x] Data-pipeline design: bundle-driven, version-capped extraction; size
       verified against the dump (~95 MB). SQL + script written.
-- [ ] Run the extraction locally (install DuckDB, restore/attach the dump,
-      produce `data/public/*.parquet`).
-- [ ] **Phase 1 — read-only demo** (current focus): load seed csets; cset
-      select / compare / members grid; concept search; concept metadata;
-      hierarchy graph.
-- [ ] Phase 2 — save csets back to GitHub (designed, deferred until Phase 1
-      works). See [docs/saveback-design.md](docs/saveback-design.md).
+- [x] Run the extraction locally: produced `data/public/*.parquet` (45 MB
+      bundle, committed for Pages to serve).
+- [x] **Phase 1 — read-only demo**: load seed csets; cset select / compare /
+      members grid; concept search; concept metadata; hierarchy graph; related
+      concept sets + researchers. Deployed and confirmed live.
+- [ ] Phase 2 — save csets back to GitHub (designed, deferred). See
+      [docs/saveback-design.md](docs/saveback-design.md).
+- [ ] Curated demo experience / guided onboarding (planned separately, likely
+      in `../hub`) — the raw app is powerful but dense for first-time users.
+- [ ] Move hosting off GitHub Pages (Cloudflare Pages / Netlify) for proper SPA
+      routing: Pages needs a `404.html` fallback, so deep-link refreshes render
+      but return an HTTP 404 status.
 
 ## Layout
 

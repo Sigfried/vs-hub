@@ -13,6 +13,7 @@ export const TABLES = [
   'cset_members_items',
   'concepts_with_counts',
   'concept_graph',
+  'researcher',
   'vocabulary',
   'domain',
   'relationship',

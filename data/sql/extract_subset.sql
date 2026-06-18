@@ -176,6 +176,31 @@ COPY (
 ) TO '{{OUT}}/concept_graph.parquet' (FORMAT parquet);
 
 -- ---------------------------------------------------------------------------
+-- 4b. researchers → researcher.parquet  (author/reviewer names on cset cards)
+--     Scoped to the multipassIds actually referenced by the kept csets' four
+--     populated researcher columns (reviewed_by/n3c_reviewer are all-NULL in
+--     this dataset — see queries.js RESEARCHER_COLS). The frontend keys these by
+--     multipassId and shows name/email/institution.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE TEMP TABLE researcher_ids AS
+SELECT DISTINCT mp AS "multipassId"
+FROM (
+  SELECT codeset_created_by     AS mp FROM {{SRC}}all_csets WHERE codeset_id IN (SELECT codeset_id FROM demo_codesets)
+  UNION ALL
+  SELECT container_created_by   AS mp FROM {{SRC}}all_csets WHERE codeset_id IN (SELECT codeset_id FROM demo_codesets)
+  UNION ALL
+  SELECT assigned_informatician AS mp FROM {{SRC}}all_csets WHERE codeset_id IN (SELECT codeset_id FROM demo_codesets)
+  UNION ALL
+  SELECT assigned_sme           AS mp FROM {{SRC}}all_csets WHERE codeset_id IN (SELECT codeset_id FROM demo_codesets)
+) t
+WHERE mp IS NOT NULL;
+
+COPY (
+  SELECT * FROM {{SRC}}researcher
+  WHERE "multipassId" IN (SELECT "multipassId" FROM researcher_ids)
+) TO '{{OUT}}/researcher.parquet' (FORMAT parquet);
+
+-- ---------------------------------------------------------------------------
 -- 5. tiny lookups → export whole.
 -- ---------------------------------------------------------------------------
 COPY (SELECT * FROM {{SRC}}vocabulary)   TO '{{OUT}}/vocabulary.parquet'   (FORMAT parquet);

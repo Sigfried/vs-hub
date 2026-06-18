@@ -13,28 +13,51 @@ const inList = (ids) => (ids.length ? ids.map(Number).join(',') : 'NULL');
 const inStr = (vals) =>
   vals.length ? vals.map((v) => `'${String(v).replace(/'/g, "''")}'`).join(',') : "NULL";
 
+// all_csets columns stored as JSON text in Parquet (they were `json` in
+// Postgres, so the original API delivered parsed objects). The UI dereferences
+// them as objects — e.g. cset.counts.Members — so parse them back here.
+const JSON_COLS = ['counts', 'flag_cnts'];
+function parseJsonCols(rows) {
+  for (const row of rows) {
+    for (const col of JSON_COLS) {
+      if (typeof row[col] === 'string') {
+        try {
+          row[col] = JSON.parse(row[col]);
+        } catch {
+          row[col] = null;
+        }
+      }
+    }
+  }
+  return rows;
+}
+
 // get-all-csets — populate the select list.
 // Original: SELECT a subset of all_csets ORDER BY created desc.
 export async function getAllCsets() {
-  return query(`
-    SELECT codeset_id,
-           concept_set_version_title,
-           alias,
-           replace(left(codeset_created_at, 16), 'T', ' ') AS codeset_created_at,
-           version,
-           counts,
-           distinct_person_cnt,
-           total_cnt
-    FROM all_csets
-    ORDER BY codeset_created_at DESC
-  `);
+  return parseJsonCols(
+    await query(`
+      SELECT codeset_id,
+             concept_set_version_title,
+             alias,
+             replace(left(codeset_created_at, 16), 'T', ' ') AS codeset_created_at,
+             version,
+             counts,
+             distinct_person_cnt,
+             total_cnt
+      FROM all_csets
+      ORDER BY codeset_created_at DESC
+    `),
+  );
 }
 
 // get-csets (codeset_ids) — full metadata for selected csets, plus a
 // researchers dict per row (ported from get_row_researcher_ids_dict).
 export async function getCsets(codesetIds) {
-  const rows = await query(
-    `SELECT * FROM all_csets WHERE codeset_id IN (${inList(codesetIds)})`,
+  const rows = parseJsonCols(
+    await query(
+      `SELECT * FROM all_csets WHERE codeset_id IN (${inList(codesetIds)})`,
+    ),
   );
   for (const row of rows) row.researchers = researcherIdsDict(row);
   return rows;
@@ -65,6 +88,56 @@ export async function conceptSearch(searchStr) {
     ORDER BY total_cnt DESC, vocabulary_id, concept_name
   `);
   return rows;
+}
+
+// related-cset-concept-counts (concept_ids) — for a set of concepts, find every
+// OTHER cset that contains them and how much it overlaps, broken down by vocab.
+// Ports backend/routes/db.py::get_related_cset_concept_counts. Only true members
+// count (csm = true), matching the original `AND csm` filter. Returns
+//   { [codeset_id]: { concepts: <total distinct overlap>, [vocab]: <pct>, ... } }
+// keyed by integer codeset_id — exactly the shape Csets.jsx consumes.
+export async function relatedCsetConceptCounts(conceptIds = []) {
+  if (!conceptIds.length) return {};
+  const rows = await query(`
+    SELECT CAST(codeset_id AS INTEGER) AS codeset_id,
+           vocabulary_id,
+           COUNT(DISTINCT concept_id) AS cnt
+    FROM cset_members_items
+    WHERE concept_id IN (${inList(conceptIds)})
+      AND csm
+    GROUP BY 1, 2
+  `);
+
+  // total distinct-concept overlap per cset (summed across its vocabs).
+  const totals = {};
+  for (const r of rows) totals[r.codeset_id] = (totals[r.codeset_id] || 0) + r.cnt;
+
+  const vcounts = {};
+  for (const r of rows) {
+    const c = (vcounts[r.codeset_id] ||= {});
+    c.concepts = totals[r.codeset_id];
+    c[r.vocabulary_id] = r.cnt / totals[r.codeset_id];
+  }
+  return vcounts;
+}
+
+// researchers (multipassIds) — name/email/institution per researcher id, keyed
+// by multipassId. Ports backend/routes/db.py::get_researchers, including the
+// placeholder rows for ids absent from the researcher table.
+export async function getResearchers(ids = []) {
+  const rows = ids.length
+    ? await query(
+        `SELECT * FROM researcher WHERE "multipassId" IN (${inStr(ids)})`,
+      )
+    : [];
+  const out = {};
+  for (const r of rows) out[r.multipassId] = r;
+  for (const id of ids) {
+    if (!out[id]) {
+      out[id] = { multipassId: id, name: 'unknown', emailAddress: 'unknown' };
+    }
+  }
+  return out;
 }
 
 // concept-graph (codeset_ids, cids) — the hierarchy subgraph.

@@ -22,6 +22,8 @@ import {
   getConcepts,
   conceptSearch,
   conceptGraph,
+  relatedCsetConceptCounts,
+  getResearchers,
 } from './queries';
 
 // Stand-in for the backend's last-refreshed timestamp. Bumping this (e.g. on a
@@ -40,6 +42,7 @@ const API_IMPL = {
   'concept-search': (searchStr) => conceptSearch(searchStr),
   'concept-graph': ({ codeset_ids = [], cids = [] }) =>
     conceptGraph(codeset_ids, cids),
+  researchers: (multipassIds) => getResearchers(multipassIds),
 };
 
 export class DuckDbDataGetter {
@@ -59,8 +62,12 @@ export class DuckDbDataGetter {
   // 'last-refreshed' — return the bundle's build timestamp so cache-staleness
   // logic works (cache invalidates when a new bundle is deployed). Everything
   // else is a no-op (no server to call).
-  async axiosCall(path) {
+  async axiosCall(path, { data } = {}) {
     if (path === 'last-refreshed') return BUNDLE_BUILD_TIME;
+    // POSTed with a concept_id array in opts.data (see Csets.jsx).
+    if (path === 'related-cset-concept-counts') {
+      return relatedCsetConceptCounts(data || []);
+    }
     return null;
   }
 
@@ -126,6 +133,13 @@ export class DuckDbDataGetter {
       key: 'concept_id',
       apiResultShape: 'array of keyed obj',
       expectOneResultRowPerKey: true,
+    },
+    researchers: {
+      expectedParams: [], // multipassIds
+      api: 'researchers',
+      cacheSlice: 'researchers',
+      key: 'multipassId',
+      apiResultShape: 'obj of obj',
     },
   };
 
@@ -211,12 +225,18 @@ export class DuckDbDataGetter {
       }
     }
 
-    const uncachedItems = {};
-    const keyNames = apiDef.key.split('.');
-    returnData.forEach((obj) => {
-      const keys = keyNames.map((k) => obj[k]);
-      setWith(uncachedItems, keys, obj, Object);
-    });
+    // 'obj of obj'/'obj of array' impls already return a keyed dict (e.g.
+    // researchers keyed by multipassId); the rest return an array we key here.
+    let uncachedItems = {};
+    if (['obj of obj', 'obj of array'].includes(apiDef.apiResultShape)) {
+      uncachedItems = returnData;
+    } else {
+      const keyNames = apiDef.key.split('.');
+      returnData.forEach((obj) => {
+        const keys = keyNames.map((k) => obj[k]);
+        setWith(uncachedItems, keys, obj, Object);
+      });
+    }
 
     const results = { ...cachedItems, ...uncachedItems };
     await dataCache.cachePut(apiDef.cacheSlice, results);

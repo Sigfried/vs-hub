@@ -38,6 +38,17 @@ jobs:
 
       - run: npm run build
 
+      # Copy the Parquet bundle into dist/data as REAL files. Locally,
+      # frontend/public/data is a symlink to ../../data/public and Vite follows
+      # it; on the CI runner that symlink isn't reliably dereferenced, so the
+      # data 404s. Copy explicitly from the repo's tracked data/public/ instead.
+      - name: Copy data bundle into dist
+        run: |
+          rm -rf dist/data
+          mkdir -p dist/data
+          cp ../data/public/*.parquet dist/data/
+          ls -lh dist/data
+
       # SPA fallback: GitHub Pages serves 404.html for unmatched paths. Making
       # it a copy of index.html lets React Router handle deep links / refreshes
       # (e.g. /vs-hub/cset-comparison?codeset_ids=...).

@@ -27,7 +27,9 @@ export default async ({ mode }) => {
   const viteTsconfigPaths = await import('vite-tsconfig-paths');
 
   return defineConfig({
-    base: '',
+    // Project-site subpath on GitHub Pages (sigfried.github.io/vs-hub/).
+    // Overridable via VITE_BASE for other hosts (root site, custom domain).
+    base: env.VITE_BASE ?? '/vs-hub/',
     plugins: [react(), viteTsconfigPaths.default()],
     define: {
       'process.env.COMMIT_HASH': JSON.stringify(getCommitHash()),

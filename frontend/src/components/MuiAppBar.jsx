@@ -191,7 +191,7 @@ export default function MuiAppBar() {
             variant="h6"
             noWrap
             component="a"
-            href="/"
+            href={import.meta.env.BASE_URL}
             sx={{
               mr: 2,
               display: { xs: "none", md: "flex" },
@@ -239,7 +239,7 @@ export default function MuiAppBar() {
             variant="h5"
             noWrap
             component="a"
-            href=""
+            href={import.meta.env.BASE_URL}
             sx={{
               mr: 2,
               display: { xs: "flex", md: "none" },

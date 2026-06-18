@@ -4,9 +4,14 @@ import { BrowserRouter } from "react-router-dom";
 import { AppWrapper, RoutesContainer /* HookTestApp */ } from "./App";
 
 
+// Match the Vite base path so routing works under the GitHub Pages subpath
+// (sigfried.github.io/vs-hub/). BASE_URL is "/vs-hub/" in the Pages build, "/"
+// in dev; React Router wants the basename without a trailing slash.
+const basename = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
-  <BrowserRouter>
+  <BrowserRouter basename={basename}>
     {/*<HookTestApp />*/}
     <AppWrapper>
         <RoutesContainer />

@@ -10,7 +10,7 @@ import Button from '@mui/material/Button';
 import {Link, useLocation} from 'react-router-dom';
 import {VERSION} from '../env';
 import {useDataCache} from '../state/DataCache';
-import {backend_url, useDataGetter} from '../state/DataGetter';
+import {useDataGetter} from '../state/DataGetter';
 import {
   useSearchParamsState,
   useSessionStorage,
@@ -43,15 +43,9 @@ export function BundleSelector({bundles}) {
             <div style={{display: 'flex', gap: '10px'}}>
               <Button
                   variant={'contained'}
-                  onClick={() => navigate(`/BundleReport?bundle=${selectedBundle}`)}
+                  onClick={() => navigate(`/BundleReport?bundle=${encodeURIComponent(selectedBundle)}`)}
               >
                 View report
-              </Button>
-              <Button
-                  variant={'contained'}
-                  href={backend_url(`bundle-download?bundle=${encodeURIComponent(selectedBundle)}`)}
-              >
-                Download JSON zip
               </Button>
             </div>
         )}

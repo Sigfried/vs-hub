@@ -24,6 +24,8 @@ import {
   conceptGraph,
   relatedCsetConceptCounts,
   getResearchers,
+  getBundleNames,
+  bundleReport,
 } from './queries';
 
 // Stand-in for the backend's last-refreshed timestamp. Bumping this (e.g. on a
@@ -67,6 +69,13 @@ export class DuckDbDataGetter {
     // POSTed with a concept_id array in opts.data (see Csets.jsx).
     if (path === 'related-cset-concept-counts') {
       return relatedCsetConceptCounts(data || []);
+    }
+    // Bundle endpoints (AboutPage / BundleReport). Backed by the imported
+    // bundle_cache.json instead of the removed FastAPI routes.
+    if (path === 'get-bundle-names') return getBundleNames();
+    if (path.startsWith('bundle-report')) {
+      const bundle = new URLSearchParams(path.split('?')[1]).get('bundle');
+      return bundleReport(bundle);
     }
     return null;
   }

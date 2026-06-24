@@ -34,7 +34,9 @@ strings the frontend hands to DuckDB-Wasm. See
       bundle, committed for Pages to serve).
 - [x] **Phase 1 — read-only demo**: load seed csets; cset select / compare /
       members grid; concept search; concept metadata; hierarchy graph; related
-      concept sets + researchers. Deployed and confirmed live.
+      concept sets + researchers; bundle selector + bundle report (About page,
+      backed by `bundle_cache.json` — no enclave-wrangler/backend). Deployed and
+      confirmed live.
 - [ ] Phase 2 — save csets back to GitHub (designed, deferred). See
       [docs/saveback-design.md](docs/saveback-design.md).
 - [ ] Curated demo experience / guided onboarding (planned separately, likely
@@ -110,11 +112,18 @@ the total bundle ≲ a few hundred MB so it fits in browser memory.
 
 | | full closure | RxNorm Ext excluded | + vocab completion (default) |
 |---|---|---|---|
-| csets kept (version-capped) | 931 | 931 | 931 |
-| concepts (seed = members) | 363,020 | 363,020 | 363,020 |
-| concepts (universe) | 688,800 | 427,741 | **550,157** |
-| graph edges | 1,841,597 | 1,080,633 | **1,241,647** |
-| **total Parquet bundle** | 53 MB | 39 MB | **45 MB** |
+| csets kept (version-capped) | 950 | 950 | 950 |
+| concepts (seed = members) | 362,846 | 362,846 | 362,846 |
+| concepts (universe) | — | — | **549,930** |
+| graph edges | — | — | **1,240,775** |
+| **total Parquet bundle** | — | — | **47 MB** |
+
+The version cap keeps ≤3 versions per value set, **but never prunes a
+codeset_id a bundle explicitly points to** — so every bundle in
+`bundle_cache.json` is fully represented in the demo (the `csets kept` count
+includes the handful of extra bundle-referenced interior versions). One empty
+(0-member) cset that a bundle referenced was deleted from `bundle_cache.json`
+rather than carried as an empty report.
 
 The concept universe = cset members + their descendants (US-only, so RxNorm
 Extension descendants are excluded — TermHub hides that vocab by default;

@@ -6,6 +6,7 @@
 // See docs/read-only-port-plan.md for the endpoint-by-endpoint mapping.
 
 import { query } from './db';
+import bundleCache from '../../../data/bundle_cache.json';
 
 // Helper: SQL IN-list of integers. Caller guarantees ids are numeric.
 const inList = (ids) => (ids.length ? ids.map(Number).join(',') : 'NULL');
@@ -61,6 +62,51 @@ export async function getCsets(codesetIds) {
   );
   for (const row of rows) row.researchers = researcherIdsDict(row);
   return rows;
+}
+
+// get-bundle-names — the N3C "bundles" (N3C Recommended, drug classes, COVID,
+// etc.). Originally a FastAPI route reading bundle_cache.json server-side; here
+// the cache is imported and bundled at build (no backend, no enclave-wrangler).
+// Only return bundles that have codeset_ids, so the selector can't offer a
+// bundle whose report would be empty. (The extraction guarantees every bundle
+// codeset_id is present in the Parquet — see extract_subset.sql — so a non-empty
+// bundle always yields a non-empty report.)
+export function getBundleNames() {
+  const { bundles } = bundleCache;
+  return bundleCache.bundle_names.filter(
+    (name) => (bundles[name]?.codeset_ids || []).length > 0,
+  );
+}
+
+// bundle-report (bundle) — per-cset summary rows for one bundle's member csets.
+// Ports backend/routes/db.py::bundle_report (the as_json=true branch). The
+// original joined code_sets just to COUNT(distinct ...) versions per
+// concept_set_name; the demo has no code_sets table, but all_csets already holds
+// one row per version, so we derive the version count from all_csets itself.
+export async function bundleReport(bundle) {
+  const codesetIds = bundleCache.bundles[bundle]?.codeset_ids || [];
+  if (!codesetIds.length) return [];
+  return query(`
+    WITH versions AS (
+      SELECT concept_set_name, COUNT(DISTINCT codeset_id) AS versions
+      FROM all_csets GROUP BY concept_set_name
+    )
+    SELECT ac.is_most_recent_version,
+           ac.codeset_id,
+           ac.concept_set_name,
+           ac.alias,
+           CAST(ac.codeset_created_at AS DATE) AS created_at,
+           COALESCE(r.name, ac.codeset_created_by) AS created_by,
+           CAST(json_extract_string(ac.counts, '$."Expression items"') AS INT) AS definition_concepts,
+           CAST(json_extract_string(ac.counts, '$."Member only"') AS INT) AS expansion_concepts,
+           ac.distinct_person_cnt,
+           v.versions
+    FROM all_csets ac
+    JOIN versions v ON ac.concept_set_name = v.concept_set_name
+    LEFT JOIN researcher r ON ac.codeset_created_by = r."multipassId"
+    WHERE ac.codeset_id IN (${inList(codesetIds)})
+    ORDER BY ac.is_most_recent_version, created_by, created_at, ac.alias
+  `);
 }
 
 // get-cset-members-items (codeset_ids) — the comparison grid.

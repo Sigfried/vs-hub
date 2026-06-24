@@ -12,8 +12,8 @@ import {useCodesetIds, } from '../state/AppState';
 
 export function BundleReport({bundle}) {
   // can get here from ViewBundleReportSelector
+  const location = useLocation();
   if (!bundle) {
-    const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
     bundle = queryParams.get('bundle');
   }
@@ -29,43 +29,53 @@ export function BundleReport({bundle}) {
         return;
       }
       try {
-        // const response = await axios.get("https://api.example.com/data");
+        // Show the bundle's concept sets on the page. Downloading only happens
+        // when the user clicks the Download button below — a demo shouldn't
+        // push files the user didn't ask for.
         const rows = await dataGetter.axiosCall(`bundle-report?bundle=${bundle}&as_json=true`, {sendAlert: false, });
-        const columns = Object.keys(rows[0]);
-        setData(rows);
-        saveCsv(rows, columns, filename);
-        // let csv = json2csv(rows);
+        setData(rows || []);
       } catch (error) {
         console.error("Error fetching data:", error);
+        setData([]);
       }
     })();
   });
 
-  let columns;
-  if (data) {
-    columns = Object.keys(data[0]).map(col => ({
-      name: col,
-      selector: row => (row[col] ?? '').toString(),
-      sortable: true,
-    }));
-
-    data = sortBy(data, row => row.concept_set_name);
-
-    columns.push({
-      name: 'link',
-      selector: row => `/cset-comparison?codeset_ids=${row.codeset_id}`,
-      format: row => <Link to={`/cset-comparison?codeset_ids=${row.codeset_id}`}>view</Link>,
-    });
+  if (!data) {
+    return <div>Loading {bundle}…</div>;
+  }
+  if (!data.length) {
+    return <TextH2>No concept sets found for “{bundle}” in the demo dataset.</TextH2>;
   }
 
-  console.log({columns, data});
+  const dataColumns = Object.keys(data[0]);
+  const columns = dataColumns.map(col => ({
+    name: col,
+    selector: row => (row[col] ?? '').toString(),
+    sortable: true,
+  }));
+  const sortedData = sortBy(data, row => row.concept_set_name);
+  columns.push({
+    name: 'link',
+    selector: row => `/cset-comparison?codeset_ids=${row.codeset_id}`,
+    format: row => <Link to={`/cset-comparison?codeset_ids=${row.codeset_id}`}>view</Link>,
+  });
+
   return (
     <div>
       <TextH2>
-        Downloading {bundle} concept sets to <samp style={{backgroundColor: '#CCC'}}>{filename}.csv</samp> in your downloads folder.
+        {bundle}: {sortedData.length} concept set{sortedData.length === 1 ? '' : 's'}
+        <Button
+            variant="contained"
+            size="small"
+            style={{marginLeft: '12px', textTransform: 'none'}}
+            onClick={() => saveCsv(sortedData, dataColumns, filename)}
+        >
+          Download CSV
+        </Button>
       </TextH2>
       <DataTable
-          data={data || []}
+          data={sortedData}
           columns={columns}
           // defaultSortFieldId="concept_set_name" // not working. don't know why
           // noHeader={false}

@@ -41,6 +41,10 @@ export default async ({ mode }) => {
       open: false,
       port: 3000,
       host: true,
+      // queries.js imports ../../../data/bundle_cache.json (a sibling of the
+      // Vite root). Allow the repo root so dev serving doesn't reject it; at
+      // build the JSON is inlined into the JS bundle.
+      fs: { allow: ['..'] },
     },
   });
 };

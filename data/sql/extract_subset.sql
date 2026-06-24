@@ -35,6 +35,19 @@ SELECT DISTINCT
 FROM raw,
      UNNEST(CAST(json_extract(bundles, '$."' || bundle_name || '".codeset_ids') AS BIGINT[])) AS t(cid);
 
+-- NOTE (bundles as data, not as a build-time JSON import):
+--   Today the browser reads bundle membership straight from bundle_cache.json
+--   (imported into frontend/src/duckdb/queries.js and inlined at build). That's
+--   fine while bundles are a static, curated list. If bundles ever need to
+--   *evolve* — be edited, versioned, or derived in-app rather than fetched from
+--   the (now-removed) N3C bundle API — promote this `bundle_ids` table to its
+--   own output and query it in DuckDB alongside everything else:
+--     COPY (SELECT * FROM bundle_ids) TO '{{OUT}}/bundle_ids.parquet' (FORMAT parquet);
+--   then register 'bundle_ids' in frontend/src/duckdb/db.js TABLES and replace
+--   the bundle_cache.json import in queries.js with SQL over that table. Until
+--   there's a reason for bundles to change at runtime, the JSON import is
+--   simpler and needs no data rebuild.
+
 -- ---------------------------------------------------------------------------
 -- 0b. Expand to version history: every cset sharing a concept_set_name with a
 --     bundle cset. Drop 0-member drafts (no rows in cset_members_items).
@@ -77,7 +90,17 @@ WHERE n_ver <= {{MAX_VERSIONS}}                    -- keep all if within cap
    OR rn_asc IN (
         SELECT CAST(round(k * (n_ver - 1.0) / ({{MAX_VERSIONS}} - 1)) AS BIGINT) + 1
         FROM range(1, {{MAX_VERSIONS}} - 1) AS g(k)
-      );
+      )
+UNION
+-- ALWAYS keep every codeset_id a bundle explicitly points to, even if the
+-- version cap above would prune it. A bundle names a *specific* version id; if
+-- that exact id were dropped the bundle report would silently substitute (or
+-- omit) it. The cap still applies to the *other* versions of the same value
+-- set, so this only adds the handful of bundle-referenced interior versions.
+-- Restrict to versioned (i.e. has ≥1 member) so a 0-member draft id slipping
+-- into a bundle can't reintroduce an empty cset.
+SELECT codeset_id FROM bundle_ids
+WHERE codeset_id IN (SELECT codeset_id FROM versioned);
 
 -- ---------------------------------------------------------------------------
 -- 1. csets metadata  → all_csets.parquet  (drives select list + cards)
